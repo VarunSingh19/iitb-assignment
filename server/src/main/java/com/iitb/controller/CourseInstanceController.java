@@ -60,4 +60,19 @@ public class CourseInstanceController {
         courseInstanceService.deleteInstance(year, semester, courseId);
         return ResponseEntity.noContent().build();
     }
+
+    @PutMapping("/{year}/{semester}/{courseId}")
+    public ResponseEntity<CourseInstance> updateInstance(
+            @PathVariable int year,
+            @PathVariable int semester,
+            @PathVariable Long courseId,
+            @RequestBody CourseInstanceRequest request) {
+        try {
+            CourseInstance updated = courseInstanceService.updateInstance(year, semester, courseId, request);
+            return ResponseEntity.ok(updated);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(null);
+        }
+    }
 }

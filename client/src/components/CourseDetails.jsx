@@ -10,7 +10,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  TextField,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import axios from 'axios';
 
@@ -18,6 +24,9 @@ const CourseDetails = ({ courseId }) => {
   const [course, setCourse] = useState(null);
   const [instances, setInstances] = useState([]);
   const [error, setError] = useState(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState(null);
+  const [instructorName, setInstructorName] = useState('');
 
   useEffect(() => {
     fetchCourseDetails();
@@ -34,6 +43,30 @@ const CourseDetails = ({ courseId }) => {
       setError(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch course details');
+    }
+  };
+
+  const handleEdit = (instance) => {
+    setSelectedInstance(instance);
+    setInstructorName(instance.instructorName || '');
+    setOpenEditDialog(true);
+  };
+
+  const handleEditClose = () => {
+    setOpenEditDialog(false);
+    setSelectedInstance(null);
+    setInstructorName('');
+  };
+
+  const handleEditSave = async () => {
+    try {
+      await axios.put(`http://localhost:8080/api/instances/${selectedInstance.year}/${selectedInstance.semester}/${courseId}`, {
+        instructorName: instructorName
+      });
+      fetchCourseDetails();
+      handleEditClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update instance');
     }
   };
 
@@ -97,6 +130,7 @@ const CourseDetails = ({ courseId }) => {
                   <TableCell>Year</TableCell>
                   <TableCell>Semester</TableCell>
                   <TableCell>Instructor</TableCell>
+                  <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -105,6 +139,16 @@ const CourseDetails = ({ courseId }) => {
                     <TableCell>{instance.year}</TableCell>
                     <TableCell>{instance.semester}</TableCell>
                     <TableCell>{instance.instructorName || "IITB Faculty Name"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleEdit(instance)}
+                      >
+                        Edit Instructor
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -112,6 +156,24 @@ const CourseDetails = ({ courseId }) => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <Dialog open={openEditDialog} onClose={handleEditClose}>
+        <DialogTitle>Edit Instructor Name</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Instructor Name"
+            fullWidth
+            value={instructorName}
+            onChange={(e) => setInstructorName(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditClose}>Cancel</Button>
+          <Button onClick={handleEditSave} color="primary">Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

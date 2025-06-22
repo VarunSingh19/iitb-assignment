@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Button, 
-  Typography, 
+import {
+  Box,
+  Button,
+  TextField,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   Select,
   MenuItem,
-  TextField,
-  Alert
+  Typography
 } from '@mui/material';
 import axios from 'axios';
 
@@ -14,10 +18,13 @@ function InstanceForm() {
   const [instance, setInstance] = useState({
     year: '',
     semester: '',
-    courseId: ''
+    courseId: '',
+    instructorName: ''
   });
   const [courses, setCourses] = useState([]);
   const [error, setError] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editInstance, setEditInstance] = useState(null);
 
   useEffect(() => {
     fetchCourses();
@@ -28,28 +35,54 @@ function InstanceForm() {
       const response = await axios.get('http://localhost:8080/api/courses');
       setCourses(response.data);
     } catch (err) {
-      setError('Failed to fetch courses');
+      setError(err.response?.data?.message || 'Failed to fetch courses');
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const course = courses.find(c => c.courseId === instance.courseId);
-      if (!course) {
-        throw new Error('Invalid course selected');
+      if (editMode && editInstance) {
+        // Update existing instance
+        await axios.put(`http://localhost:8080/api/instances/${editInstance.year}/${editInstance.semester}/${editInstance.course.id}`, {
+          year: Number(instance.year),
+          semester: instance.semester.toString(),
+          instructorName: instance.instructorName
+        });
+        setEditMode(false);
+        setEditInstance(null);
+      } else {
+        // Create new instance
+        const course = courses.find(c => c.courseId === instance.courseId);
+        if (!course) {
+          throw new Error('Invalid course selected');
+        }
+
+        const instanceData = {
+          courseId: instance.courseId,
+          year: Number(instance.year),
+          semester: instance.semester.toString(),
+          instructorName: instance.instructorName?.trim() || 'IITB Faculty Name'
+        };
+
+        // Validate instructor name
+        if (!instanceData.instructorName) {
+          throw new Error('Instructor name is required');
+        }
+
+        const response = await axios.post('http://localhost:8080/api/instances', instanceData);
+        console.log('Created instance:', response.data);
+        setInstance({
+          year: '',
+          semester: '',
+          courseId: '',
+          instructorName: ''
+        });
       }
-
-      const instanceData = {
-        courseId: instance.courseId,
-        year: Number(instance.year),
-        semester: Number(instance.semester)
-      };
-
-      await axios.post('http://localhost:8080/api/instances', instanceData);
-      window.location.href = '/instances';
+      setError(null);
     } catch (err) {
-      setError(err.message || 'Failed to create instance');
+      console.error('Error details:', err);
+      setError(err.response?.data?.message || 'Failed to save instance');
     }
   };
 
@@ -65,49 +98,45 @@ function InstanceForm() {
         </Alert>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <Box component="form" onSubmit={handleSubmit}>
         <TextField
-          select
           fullWidth
           label="Year"
+          variant="outlined"
           value={instance.year}
-          onChange={(e) => setInstance(prev => ({ ...prev, year: e.target.value }))}
-          margin="normal"
-          required
-        >
-          <MenuItem value="2024">2024</MenuItem>
-          <MenuItem value="2025">2025</MenuItem>
-        </TextField>
-
+          onChange={(e) => setInstance({ ...instance, year: e.target.value })}
+          sx={{ mb: 2 }}
+        />
         <TextField
-          select
           fullWidth
           label="Semester"
+          variant="outlined"
           value={instance.semester}
-          onChange={(e) => setInstance(prev => ({ ...prev, semester: e.target.value }))}
-          margin="normal"
-          required
-        >
-          <MenuItem value="1">1</MenuItem>
-          <MenuItem value="2">2</MenuItem>
-        </TextField>
-
-        <TextField
-          select
+          onChange={(e) => setInstance({ ...instance, semester: e.target.value })}
+          sx={{ mb: 2 }}
+        />
+        <Select
           fullWidth
           label="Course"
           value={instance.courseId}
-          onChange={(e) => setInstance(prev => ({ ...prev, courseId: e.target.value }))}
-          margin="normal"
-          required
+          onChange={(e) => setInstance({ ...instance, courseId: e.target.value })}
+          sx={{ mb: 2 }}
         >
-          {courses.map((c) => (
-            <MenuItem key={c.courseId} value={c.courseId}>
-              {c.courseId} - {c.title}
+          {courses.map((course) => (
+            <MenuItem key={course.id} value={course.courseId}>
+              {course.title} ({course.courseId})
             </MenuItem>
           ))}
-        </TextField>
-
+        </Select>
+        <TextField
+          fullWidth
+          label="Instructor Name"
+          variant="outlined"
+          value={instance.instructorName}
+          onChange={(e) => setInstance({ ...instance, instructorName: e.target.value.trim() })}
+          required
+          sx={{ mb: 2 }}
+        />
         <Button
           type="submit"
           variant="contained"
@@ -116,7 +145,7 @@ function InstanceForm() {
         >
           Create Instance
         </Button>
-      </form>
+      </Box>
     </Box>
   );
 }

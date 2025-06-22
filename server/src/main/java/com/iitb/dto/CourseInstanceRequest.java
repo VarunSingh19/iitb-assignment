@@ -10,4 +10,5 @@ public class CourseInstanceRequest {
     private String courseId;
     private Integer year;
     private String semester;
+    private String instructorName;
 }

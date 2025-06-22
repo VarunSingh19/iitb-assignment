@@ -35,14 +35,16 @@ public class CourseInstanceService {
 
             CourseInstance instance = new CourseInstance();
             instance.setYear(request.getYear());
-            instance.setSemester(Integer.parseInt(request.getSemester()));
+            instance.setSemester(Integer.parseInt(request.getSemester())); // Convert to int
             instance.setCourse(course);
+            instance.setInstructorName(request.getInstructorName() != null ? 
+                request.getInstructorName() : "IITB Faculty Name");
             
             return courseInstanceRepository.save(instance);
         } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Invalid semester format", e);
+            throw new IllegalArgumentException("Invalid semester format. Please enter a number between 1 and 2", e);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create course instance", e);
+            throw new RuntimeException("Failed to create course instance: " + e.getMessage(), e);
         }
     }
 
@@ -71,5 +73,29 @@ public class CourseInstanceService {
     public void deleteInstance(int year, int semester, Long courseId) {
         CourseInstance instance = getInstance(year, semester, courseId);
         courseInstanceRepository.delete(instance);
+    }
+
+    public CourseInstance updateInstance(int year, int semester, Long courseId, CourseInstanceRequest request) {
+        CourseInstance instance = getInstance(year, semester, courseId);
+        
+        // Ensure course ID matches
+        if (request.getCourseId() != null) {
+            Long requestedCourseId = Long.parseLong(request.getCourseId());
+            if (!requestedCourseId.equals(courseId)) {
+                throw new IllegalArgumentException("Cannot change course ID");
+            }
+        }
+        
+        if (request.getYear() != null) {
+            instance.setYear(request.getYear());
+        }
+        if (request.getSemester() != null) {
+            instance.setSemester(Integer.parseInt(request.getSemester()));
+        }
+        if (request.getInstructorName() != null) {
+            instance.setInstructorName(request.getInstructorName());
+        }
+        
+        return courseInstanceRepository.save(instance);
     }
 }

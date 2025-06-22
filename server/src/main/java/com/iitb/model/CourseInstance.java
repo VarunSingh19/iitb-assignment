@@ -28,6 +28,9 @@ public class CourseInstance {
     @Column(nullable = false)
     private int semester;
 
+    @Column(nullable = true)
+    private String instructorName;
+
     public CourseInstance(Course course, int year, int semester) {
         this.course   = course;
         this.year     = year;

@@ -14,7 +14,11 @@ import {
   Paper,
   Alert,
   TextField,
-  MenuItem
+  MenuItem,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import axios from 'axios';
 
@@ -23,6 +27,9 @@ function InstanceList() {
   const [year, setYear] = useState('');
   const [semester, setSemester] = useState('');
   const [error, setError] = useState(null);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedInstance, setSelectedInstance] = useState(null);
+  const [instructorName, setInstructorName] = useState('');
 
   const fetchInstances = async (all = false) => {
     try {
@@ -42,6 +49,40 @@ function InstanceList() {
   };
 
   
+  const handleEdit = (instance) => {
+    setSelectedInstance({
+      ...instance,
+      year: instance.year.toString(),
+      semester: instance.semester.toString()
+    });
+    setInstructorName(instance.instructorName || '');
+    setOpenEditDialog(true);
+  };
+
+  const handleEditClose = () => {
+    setOpenEditDialog(false);
+    setSelectedInstance(null);
+    setInstructorName('');
+  };
+
+  const handleEditSave = async () => {
+    try {
+      const instanceData = {
+        courseId: selectedInstance.course.id,
+        year: Number(selectedInstance.year),
+        semester: selectedInstance.semester.toString(),
+        instructorName: instructorName
+      };
+      
+      await axios.put(`http://localhost:8080/api/instances/${selectedInstance.year}/${selectedInstance.semester}/${selectedInstance.course.id}`, instanceData);
+      fetchInstances();
+      handleEditClose();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to update instance');
+      console.error('Error:', err);
+    }
+  };
+
   const deleteInstance = async (year, semester, courseId) => {
     try {
       await axios.delete(
@@ -125,6 +166,7 @@ function InstanceList() {
                   <TableCell>Title</TableCell>
                   <TableCell>Year</TableCell>
                   <TableCell>Semester</TableCell>
+                  <TableCell>Instructor</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -135,10 +177,21 @@ function InstanceList() {
                     <TableCell>{instance.course.title}</TableCell>
                     <TableCell>{instance.year}</TableCell>
                     <TableCell>{instance.semester}</TableCell>
+                    <TableCell>{instance.instructorName || "IITB Faculty Name"}</TableCell>
                     <TableCell>
                       <Button 
                         variant="outlined"
+                        color="primary"
+                        size="small"
+                        onClick={() => handleEdit(instance)}
+                        sx={{ mr: 1 }}
+                      >
+                        Edit
+                      </Button>
+                      <Button 
+                        variant="outlined"
                         color="error"
+                        size="small"
                         onClick={() => deleteInstance(
                           instance.year,
                           instance.semester,
@@ -155,6 +208,53 @@ function InstanceList() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <Dialog open={openEditDialog} onClose={handleEditClose} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Course Instance</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              fullWidth
+              label="Year"
+              value={selectedInstance?.year || ''}
+              onChange={(e) => setSelectedInstance({ ...selectedInstance, year: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Semester"
+              value={selectedInstance?.semester || ''}
+              onChange={(e) => setSelectedInstance({ ...selectedInstance, semester: e.target.value })}
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Course ID"
+              value={selectedInstance?.course?.courseId || ''}
+              disabled
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Course Title"
+              value={selectedInstance?.course?.title || ''}
+              disabled
+              sx={{ mb: 2 }}
+            />
+            <TextField
+              fullWidth
+              label="Instructor Name"
+              value={instructorName}
+              onChange={(e) => setInstructorName(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleEditClose}>Cancel</Button>
+          <Button onClick={handleEditSave} color="primary">Save</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
