@@ -5,6 +5,7 @@ import com.iitb.repository.CourseRepository;
 import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class CourseService {
@@ -15,20 +16,27 @@ public class CourseService {
     }
 
     public Course createCourse(Course course) {
-        validatePrerequisites(course);
-        return courseRepository.save(course);
+        // First save the course without prerequisites
+        Course savedCourse = courseRepository.save(course);
+        
+        if (course.getPrerequisites() != null && !course.getPrerequisites().isEmpty()) {
+            // Fetch all prerequisite courses from database
+            Set<Course> prerequisites = course.getPrerequisites().stream()
+                .map(prereq -> courseRepository.findById(prereq.getId())
+                    .orElseThrow(() -> new RuntimeException("Prerequisite course not found: " + prereq.getId())))
+                .collect(Collectors.toSet());
+            
+            // Set the prerequisites
+            savedCourse.setPrerequisites(prerequisites);
+            
+            // Save again with prerequisites
+            return courseRepository.save(savedCourse);
+        }
+        
+        return savedCourse;
     }
 
-    private void validatePrerequisites(Course course) {
-        Set<Course> prerequisites = course.getPrerequisites();
-        if (prerequisites != null && !prerequisites.isEmpty()) {
-            for (Course prerequisite : prerequisites) {
-                if (!courseRepository.existsById(prerequisite.getId())) {
-                    throw new RuntimeException("Prerequisite course not found: " + prerequisite.getCourseId());
-                }
-            }
-        }
-    }
+
 
     public List<Course> getAllCourses() {
         return courseRepository.findAll();
@@ -42,7 +50,7 @@ public class CourseService {
     public void deleteCourse(Long id) {
         Course course = getCourseById(id);
         if (courseRepository.existsByPrerequisitesContains(course)) {
-            throw new RuntimeException("Cannot delete course as it is a prerequisite for other courses");
+            throw new IllegalArgumentException("Cannot delete course " + course.getCourseId() + " as it is a prerequisite for other courses");
         }
         courseRepository.delete(course);
     }

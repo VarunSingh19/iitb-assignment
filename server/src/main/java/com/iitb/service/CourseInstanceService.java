@@ -50,6 +50,10 @@ public class CourseInstanceService {
         return courseInstanceRepository.findAll();
     }
 
+    public List<CourseInstance> getInstancesByCourse(Long courseId) {
+        return courseInstanceRepository.findByCourseId(courseId);
+    }
+
     public List<CourseInstance> getInstancesByYearSemester(int year, int semester) {
         return courseInstanceRepository.findByYearAndSemester(year, semester);
     }

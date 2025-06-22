@@ -32,6 +32,12 @@ public class CourseController {
                 .body(courseService.createCourse(course));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<Course> updateCourse(@PathVariable Long id, @RequestBody Course course) {
+        course.setId(id);
+        return ResponseEntity.ok(courseService.createCourse(course));
+    }
+
     @GetMapping
     public ResponseEntity<List<Course>> getAllCourses() {
         return ResponseEntity.ok(courseService.getAllCourses());

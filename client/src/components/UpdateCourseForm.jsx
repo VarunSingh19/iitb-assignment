@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 
-function CourseForm() {
+function UpdateCourseForm({ courseId, onClose }) {
   const [course, setCourse] = useState({
     title: '',
     courseId: '',
@@ -23,8 +23,24 @@ function CourseForm() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    fetchCourseDetails();
     fetchAvailableCourses();
-  }, []);
+  }, [courseId]);
+
+  const fetchCourseDetails = async () => {
+    try {
+      const response = await axios.get(`http://localhost:8080/api/courses/${courseId}`);
+      const courseData = response.data;
+      // Convert prerequisites to array of IDs
+      const prerequisites = courseData.prerequisites?.map(prereq => prereq.id) || [];
+      setCourse({
+        ...courseData,
+        prerequisites
+      });
+    } catch (err) {
+      setError('Failed to fetch course details');
+    }
+  };
 
   const fetchAvailableCourses = async () => {
     try {
@@ -38,7 +54,7 @@ function CourseForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Convert prerequisites to an array of course IDs
+      // Convert prerequisites to an array of course objects
       const courseData = {
         ...course,
         prerequisites: course.prerequisites.map(id => ({
@@ -46,42 +62,39 @@ function CourseForm() {
         }))
       };
       
-      await axios.post('http://localhost:8080/api/courses', courseData);
-      window.location.href = '/';
+      await axios.put(`http://localhost:8080/api/courses/${courseId}`, courseData);
+      onClose();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create course');
+      setError(err.response?.data?.message || 'Failed to update course');
+      console.error('Update error:', err.response?.data);
     }
   };
 
   const handlePrerequisiteChange = (e) => {
-    const selected = e.target.value;
+    const selectedValues = Array.isArray(e.target.value) ? e.target.value : [e.target.value];
     setCourse(prev => ({
       ...prev,
-      prerequisites: selected
+      prerequisites: selectedValues
     }));
   };
 
   return (
-    <Box sx={{ mt: 4, maxWidth: 600, mx: 'auto' }}>
-      <Typography variant="h5" component="h2" gutterBottom>
-        Create New Course
-      </Typography>
-
+    <Box sx={{ p: 3 }}>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {error}
         </Alert>
       )}
-
       <form onSubmit={handleSubmit}>
         <TextField
           fullWidth
-          label="Course Title"
+          label="Title"
           value={course.title}
           onChange={(e) => setCourse(prev => ({ ...prev, title: e.target.value }))}
           margin="normal"
           required
         />
+
         <TextField
           fullWidth
           label="Course ID"
@@ -90,15 +103,16 @@ function CourseForm() {
           margin="normal"
           required
         />
+
         <TextField
           fullWidth
           label="Description"
+          multiline
+          rows={4}
           value={course.description}
           onChange={(e) => setCourse(prev => ({ ...prev, description: e.target.value }))}
           margin="normal"
           required
-          multiline
-          rows={4}
         />
 
         <FormControl fullWidth margin="normal">
@@ -107,27 +121,31 @@ function CourseForm() {
             multiple
             value={course.prerequisites}
             onChange={handlePrerequisiteChange}
-            label="Prerequisites"
+            renderValue={(selected) => {
+              if (!selected || selected.length === 0) return 'No prerequisites';
+              const selectedCourses = availableCourses.filter(course => selected.includes(course.id));
+              return selectedCourses.map(course => `${course.courseId} - ${course.title}`).join(', ');
+            }}
           >
-            {availableCourses.map((c) => (
-              <MenuItem key={c.id} value={c.id}>
-                {c.courseId} - {c.title}
+            {availableCourses.map((availCourse) => (
+              <MenuItem key={availCourse.id} value={availCourse.id}>
+                {availCourse.courseId} - {availCourse.title}
               </MenuItem>
             ))}
           </Select>
         </FormControl>
 
-        <Button
-          type="submit"
-          variant="contained"
-          color="primary"
-          sx={{ mt: 2 }}
-        >
-          Create Course
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+          <Button variant="contained" type="submit">
+            Update Course
+          </Button>
+          <Button variant="outlined" onClick={onClose}>
+            Cancel
+          </Button>
+        </Box>
       </form>
     </Box>
   );
 }
 
-export default CourseForm;
+export default UpdateCourseForm;

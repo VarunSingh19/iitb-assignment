@@ -4,25 +4,27 @@ import {
   Card, 
   CardContent, 
   Typography, 
-  Button, 
   Table, 
   TableBody, 
   TableCell, 
   TableContainer, 
   TableHead, 
   TableRow, 
-  Paper,
-  Alert
+  Paper, 
+  Button, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent 
 } from '@mui/material';
 import axios from 'axios';
+import CourseDetails from './CourseDetails';
+import UpdateCourseForm from './UpdateCourseForm';
+import { useNavigate } from 'react-router-dom';
 
-function CourseList() {
+const CourseList = () => {
   const [courses, setCourses] = useState([]);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchCourses();
-  }, []);
+  const [selectedCourse, setSelectedCourse] = useState(null);
 
   const fetchCourses = async () => {
     try {
@@ -34,13 +36,48 @@ function CourseList() {
     }
   };
 
+  useEffect(() => {
+    fetchCourses();
+  }, []);
+
   const deleteCourse = async (id) => {
     try {
-      await axios.delete(`http://localhost:8080/api/courses/${id}`);
-      fetchCourses();
+      const response = await axios.delete(`http://localhost:8080/api/courses/${id}`);
+      if (response.status === 204) {
+        fetchCourses();
+        if (selectedCourse?.id === id) {
+          setSelectedCourse(null);
+        }
+      } else {
+        throw new Error('Failed to delete course');
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to delete course');
     }
+  };
+
+  const viewCourse = (course) => {
+    setSelectedCourse(course);
+  };
+
+  const navigate = useNavigate();
+
+  const handleAddCourse = () => {
+    navigate('/courses/new');
+  };
+
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [selectedCourseForUpdate, setSelectedCourseForUpdate] = useState(null);
+
+  const handleUpdateClick = (course) => {
+    setSelectedCourseForUpdate(course);
+    setUpdateDialogOpen(true);
+  };
+
+  const handleCloseUpdateDialog = () => {
+    setUpdateDialogOpen(false);
+    setSelectedCourseForUpdate(null);
+    fetchCourses();
   };
 
   return (
@@ -53,25 +90,18 @@ function CourseList() {
           <Button 
             variant="contained" 
             color="primary"
-            href="/courses/new"
+            onClick={handleAddCourse}
+            sx={{ mb: 2 }}
           >
             Add New Course
           </Button>
-          
-          {error && (
-            <Alert severity="error" sx={{ mt: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <TableContainer component={Paper} sx={{ mt: 2 }}>
+          {error && <Typography color="error">{error}</Typography>}
+          <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
                   <TableCell>Course ID</TableCell>
                   <TableCell>Title</TableCell>
-                  <TableCell>Description</TableCell>
-                  <TableCell>Prerequisites</TableCell>
                   <TableCell>Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -80,15 +110,28 @@ function CourseList() {
                   <TableRow key={course.id}>
                     <TableCell>{course.courseId}</TableCell>
                     <TableCell>{course.title}</TableCell>
-                    <TableCell>{course.description}</TableCell>
-                    <TableCell>
-                      {course.prerequisites?.map((p) => p.courseId)?.join(', ')}
-                    </TableCell>
                     <TableCell>
                       <Button 
-                        variant="outlined"
-                        color="error"
+                        variant="outlined" 
+                        onClick={() => viewCourse(course)}
+                        size="small"
+                        sx={{ mr: 1 }}
+                      >
+                        View
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        onClick={() => handleUpdateClick(course)}
+                        size="small"
+                        sx={{ mr: 1 }}
+                      >
+                        Update
+                      </Button>
+                      <Button 
+                        variant="outlined" 
+                        color="error" 
                         onClick={() => deleteCourse(course.id)}
+                        size="small"
                       >
                         Delete
                       </Button>
@@ -100,6 +143,20 @@ function CourseList() {
           </TableContainer>
         </CardContent>
       </Card>
+
+      {selectedCourse && (
+        <CourseDetails courseId={selectedCourse.id} />
+      )}
+
+      <Dialog open={updateDialogOpen} onClose={handleCloseUpdateDialog} maxWidth="md" fullWidth>
+        <DialogTitle>Update Course</DialogTitle>
+        <DialogContent>
+          <UpdateCourseForm 
+            courseId={selectedCourseForUpdate?.id}
+            onClose={handleCloseUpdateDialog}
+          />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
